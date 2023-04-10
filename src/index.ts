@@ -1,24 +1,22 @@
 import { Injector, Logger, webpack } from "replugged";
-
+import "./style.css";
 const inject = new Injector();
-const logger = Logger.plugin("PluginTemplate");
 
 export async function start(): Promise<void> {
-  const typingMod = await webpack.waitForModule<{
-    startTyping: (channelId: string) => void;
-  }>(webpack.filters.byProps("startTyping"));
-  const getChannelMod = await webpack.waitForModule<{
-    getChannel: (id: string) => {
-      name: string;
-    };
-  }>(webpack.filters.byProps("getChannel"));
+  const mod = webpack.getBySource(/banner:(this\.banner)/);
 
-  if (typingMod && getChannelMod) {
-    inject.instead(typingMod, "startTyping", ([channel]) => {
-      const channelObj = getChannelMod.getChannel(channel);
-      logger.log(`Typing prevented! Channel: #${channelObj?.name ?? "unknown"} (${channel}).`);
-    });
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  inject.after(mod as any, "Z", (args, res) => {
+    if (!res) return;
+    fetch(`https://raw.githubusercontent.com/AutumnVN/usrbg/main/dist/${res.userId}.txt`).then(
+      (r) => {
+        if (r.status === 404) return;
+        void r.text().then((text) => {
+          res.banner = text;
+        });
+      },
+    );
+  });
 }
 
 export function stop(): void {
